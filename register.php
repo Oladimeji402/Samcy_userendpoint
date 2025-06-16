@@ -102,13 +102,13 @@ if ($stmt->fetch()) {
     exit;
 }
 
+$userId = generateCustomUserId($pdo);
 
 
 // Insert new user
-$stmt = $pdo->prepare("INSERT INTO users (firstName, lastName, email, phone, password, maritalStatus, dob, state, localGovt, address, nationality, nin, department, gender, role, privacyPolicy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-$stmt->execute([$firstName, $lastName, $email, $phone, $hashedPassword, $maritalStatus, $dob, $state, $localGovt, $address, $nationality, $nin, $department, $gender, $role, $privacyPolicy]);
+$stmt = $pdo->prepare("INSERT INTO users (id, firstName, lastName, email, phone, password, maritalStatus, dob, state, localGovt, address, nationality, nin, department, gender, role, privacyPolicy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt->execute([$userId, $firstName, $lastName, $email, $phone, $hashedPassword, $maritalStatus, $dob, $state, $localGovt, $address, $nationality, $nin, $department, $gender, $role, $privacyPolicy]);
 
-$userId = $pdo->lastInsertId();
 
 // JWT generation
 $payload = [
