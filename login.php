@@ -23,7 +23,7 @@ if (empty($data['email']) || empty($data['password']) || empty($data['role'])) {
 
 $email = sanitize($data['email']);
 $password = $data['password'];
-$role = strtolower(sanitize($data['role'])); // normalize to lowercase
+$role = strtolower(sanitize($data['role']));
 $rememberMe = isset($data['rememberMe']) && $data['rememberMe'] ? true : false;
 
 // Allow only these 4 roles
@@ -46,7 +46,7 @@ if (!$user || !password_verify($password, $user['password']) || strtolower($user
     exit;
 }
 
-// Set expiry time for JWT
+// expiry time for JWT
 $expiry = $rememberMe ? (60 * 60 * 24 * 7) : (60 * 60); // 1 hour or 7 days
 
 $payload = [
@@ -60,7 +60,7 @@ $payload = [
 $jwt = JWT::encode($payload, $_ENV['JWT_SECRET'], 'HS256');
 
 if ($user['first_login']) {
-    // Send first login email
+    //  first login email
 
     $mail = new PHPMailer(true);
     try {
@@ -101,7 +101,6 @@ if ($user['first_login']) {
     $update->execute([$user['id']]);
 }
 
-// Successful login response
 echo json_encode([
     "message" => "Login successful",
     "token" => $jwt,
