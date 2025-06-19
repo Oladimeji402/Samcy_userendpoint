@@ -6,6 +6,9 @@ require_once 'includes/functions.php';
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 $data = json_decode(file_get_contents("php://input"), true);
 $requiredFields = ['firstName', 'lastName', 'email', 'phone', 'password', 'confirmPassword', 'maritalStatus', 'dob', 'state', 'localGovt', 'address', 'nationality', 'nin', 'department', 'gender', 'role', 'privacyPolicy'];
 
@@ -105,10 +108,45 @@ if ($stmt->fetch()) {
 $userId = generateCustomUserId($pdo);
 
 
+
 // Insert new user
 $stmt = $pdo->prepare("INSERT INTO users (id, firstName, lastName, email, phone, password, maritalStatus, dob, state, localGovt, address, nationality, nin, department, gender, role, privacyPolicy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 $stmt->execute([$userId, $firstName, $lastName, $email, $phone, $hashedPassword, $maritalStatus, $dob, $state, $localGovt, $address, $nationality, $nin, $department, $gender, $role, $privacyPolicy]);
 
+
+$mail = new PHPMailer(true);
+try {
+    $mail->isSMTP();
+    $mail->Host = $_ENV['MAIL_HOST'];
+    $mail->SMTPAuth = true;
+    $mail->Username = $_ENV['MAIL_USER'];
+    $mail->Password = $_ENV['MAIL_PASS'];
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port = $_ENV['MAIL_PORT'];
+
+    $mail->setFrom($_ENV['MAIL_FROM'], 'Samcy Support');
+    $mail->addAddress($email, $firstName);
+    $mail->addReplyTo($_ENV['MAIL_FROM'], 'Samcy Support');
+
+    $mail->isHTML(true);
+    $mail->Subject = '🎉 Welcome to Samcy!';
+    $mail->Body = "
+        <html>
+        <body>
+            <h2>Welcome, {$firstName}!</h2>
+            <p>Thank you for joining <strong>Samcy</strong>. We're thrilled to have you on board.</p>
+            <p>You can now log in and explore your dashboard.</p>
+            <p>Best wishes,<br>The Samcy Team</p>
+        </body>
+        </html>
+    ";
+    $mail->AltBody = "Welcome, {$firstName}! Thank you for joining Samcy.";
+
+    $mail->send();
+} catch (Exception $e) {
+    // Don’t block the registration process if email fails
+    error_log("Failed to send welcome email to $email: " . $mail->ErrorInfo);
+}
 
 // JWT generation
 $payload = [

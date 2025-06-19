@@ -30,7 +30,7 @@ if (!$user) {
 
 // Generate secure token
 $token = bin2hex(random_bytes(32));
-$expires = date('Y-m-d H:i:s', time() + 60 * 30); // 30 minutes
+$expires = date('Y-m-d H:i:s', time() + 60 * 5); // 5 minutes
 
 // Store token in DB
 $stmt = $pdo->prepare("UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?");
@@ -70,7 +70,7 @@ try {
         </p>
         <p>If the button doesn't work, copy and paste this link into your browser:</p>
         <p><a href=\"$resetLink\">$resetLink</a></p>
-        <p>This link expires in 30 minutes.</p>
+        <p>This link expires in 5 minutes.</p>
         <p>Regards,<br>Samcy Support</p>
     </body>
     </html>
