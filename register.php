@@ -9,11 +9,13 @@ require_once 'includes/functions.php';
 
 
 
+
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+
 
 
 
@@ -45,6 +47,12 @@ $department = sanitize($data['department']);
 $gender = sanitize($data['gender']);
 $role = sanitize($data['role']);
 $privacyPolicy = filter_var($data['privacyPolicy'], FILTER_VALIDATE_BOOLEAN);
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+  http_response_code(204);
+  exit;
+}
+
 
 if (!isValidEmail($email)) {
   http_response_code(400);
@@ -182,7 +190,6 @@ $payload = [
 
 $jwt = JWT::encode($payload, $_ENV['JWT_SECRET'], 'HS256');
 
-// Response
 echo json_encode([
   "message" => "User registered successfully",
   "token" => $jwt,
