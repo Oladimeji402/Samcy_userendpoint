@@ -9,15 +9,17 @@ use Firebase\JWT\Key;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+
+
 $data = json_decode(file_get_contents("php://input"), true);
 $requiredFields = ['firstName', 'lastName', 'email', 'phone', 'password', 'confirmPassword', 'maritalStatus', 'dob', 'state', 'localGovt', 'address', 'nationality', 'nin', 'department', 'gender', 'role', 'privacyPolicy'];
 
 foreach ($requiredFields as $field) {
-    if (empty($data[$field])) {
-        http_response_code(400);
-        echo json_encode(['error' => "$field is required"]);
-        exit;
-    }
+  if (empty($data[$field])) {
+    http_response_code(400);
+    echo json_encode(['error' => "$field is required"]);
+    exit;
+  }
 }
 
 $firstName = sanitize($data['firstName']);
@@ -39,21 +41,21 @@ $role = sanitize($data['role']);
 $privacyPolicy = filter_var($data['privacyPolicy'], FILTER_VALIDATE_BOOLEAN);
 
 if (!isValidEmail($email)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid email format']);
-    exit;
+  http_response_code(400);
+  echo json_encode(['error' => 'Invalid email format']);
+  exit;
 }
 
 if (!isStrongPassword($password)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Password must be at least 8 characters long']);
-    exit;
+  http_response_code(400);
+  echo json_encode(['error' => 'Password must be at least 8 characters long']);
+  exit;
 }
 
 if ($password !== $confirmPassword) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Passwords do not match']);
-    exit;
+  http_response_code(400);
+  echo json_encode(['error' => 'Passwords do not match']);
+  exit;
 }
 
 $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
@@ -62,9 +64,9 @@ $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
 $allowedRoles = ['admin', 'instructor', 'student', 'parent'];
 $role = strtolower(sanitize($data['role']));
 if (!in_array($role, $allowedRoles)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid role selected']);
-    exit;
+  http_response_code(400);
+  echo json_encode(['error' => 'Invalid role selected']);
+  exit;
 }
 
 
@@ -72,18 +74,18 @@ if (!in_array($role, $allowedRoles)) {
 $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
 $stmt->execute([$email]);
 if ($stmt->fetch()) {
-    http_response_code(409);
-    echo json_encode(['error' => 'Email already exists']);
-    exit;
+  http_response_code(409);
+  echo json_encode(['error' => 'Email already exists']);
+  exit;
 }
 
 // Check if full name already exists
 $stmt = $pdo->prepare("SELECT id FROM users WHERE firstName = ? AND lastName = ?");
 $stmt->execute([$firstName, $lastName]);
 if ($stmt->fetch()) {
-    http_response_code(409);
-    echo json_encode(['error' => 'A user with this name already exists']);
-    exit;
+  http_response_code(409);
+  echo json_encode(['error' => 'A user with this name already exists']);
+  exit;
 }
 
 
@@ -91,18 +93,18 @@ if ($stmt->fetch()) {
 $stmt = $pdo->prepare("SELECT id FROM users WHERE phone = ?");
 $stmt->execute([$phone]);
 if ($stmt->fetch()) {
-    http_response_code(409);
-    echo json_encode(['error' => 'Phone number already exists']);
-    exit;
+  http_response_code(409);
+  echo json_encode(['error' => 'Phone number already exists']);
+  exit;
 }
 
 // Check if NIN already exists
 $stmt = $pdo->prepare("SELECT id FROM users WHERE nin = ?");
 $stmt->execute([$nin]);
 if ($stmt->fetch()) {
-    http_response_code(409);
-    echo json_encode(['error' => 'NIN already exists']);
-    exit;
+  http_response_code(409);
+  echo json_encode(['error' => 'NIN already exists']);
+  exit;
 }
 
 $userId = generateCustomUserId($pdo);
@@ -116,21 +118,21 @@ $stmt->execute([$userId, $firstName, $lastName, $email, $phone, $hashedPassword,
 
 $mail = new PHPMailer(true);
 try {
-    $mail->isSMTP();
-    $mail->Host = $_ENV['MAIL_HOST'];
-    $mail->SMTPAuth = true;
-    $mail->Username = $_ENV['MAIL_USER'];
-    $mail->Password = $_ENV['MAIL_PASS'];
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port = $_ENV['MAIL_PORT'];
+  $mail->isSMTP();
+  $mail->Host = $_ENV['MAIL_HOST'];
+  $mail->SMTPAuth = true;
+  $mail->Username = $_ENV['MAIL_USER'];
+  $mail->Password = $_ENV['MAIL_PASS'];
+  $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+  $mail->Port = $_ENV['MAIL_PORT'];
 
-    $mail->setFrom($_ENV['MAIL_FROM'], 'Samcy Support');
-    $mail->addAddress($email, $firstName);
-    $mail->addReplyTo($_ENV['MAIL_FROM'], 'Samcy Support');
+  $mail->setFrom($_ENV['MAIL_FROM'], 'Samcy Support');
+  $mail->addAddress($email, $firstName);
+  $mail->addReplyTo($_ENV['MAIL_FROM'], 'Samcy Support');
 
-    $mail->isHTML(true);
-    $mail->Subject = '🎉 Welcome to Samcy!';
-    $mail->Body = "
+  $mail->isHTML(true);
+  $mail->Subject = '🎉 Welcome to Samcy!';
+  $mail->Body = "
 <html>
   <body style='margin:0; padding:0; font-family:Arial, sans-serif; background-color:#121212; color:#ffffff;'>
     <table width='100%' cellpadding='0' cellspacing='0'>
@@ -155,34 +157,34 @@ try {
   </body>
 </html>";
 
-    $mail->AltBody = "Welcome, {$firstName}! Thank you for joining Samcy.";
+  $mail->AltBody = "Welcome, {$firstName}! Thank you for joining Samcy.";
 
-    $mail->send();
+  $mail->send();
 } catch (Exception $e) {
-    // Don’t block the registration process if email fails
-    error_log("Failed to send welcome email to $email: " . $mail->ErrorInfo);
+  // Don’t block the registration process if email fails
+  error_log("Failed to send welcome email to $email: " . $mail->ErrorInfo);
 }
 
 // JWT generation
 $payload = [
-    "id" => $userId,
-    "email" => $email,
-    "role" => $role,
-    "iat" => time(),
-    "exp" => time() + (60 * 60 * 24 * 7) // 7 days
+  "id" => $userId,
+  "email" => $email,
+  "role" => $role,
+  "iat" => time(),
+  "exp" => time() + (60 * 60 * 24 * 7) // 7 days
 ];
 
 $jwt = JWT::encode($payload, $_ENV['JWT_SECRET'], 'HS256');
 
 // Response
 echo json_encode([
-    "message" => "User registered successfully",
-    "token" => $jwt,
-    "user" => [
-        "id" => $userId,
-        "firstName" => $firstName,
-        "lastName" => $lastName,
-        "email" => $email,
-        "role" => $role
-    ]
+  "message" => "User registered successfully",
+  "token" => $jwt,
+  "user" => [
+    "id" => $userId,
+    "firstName" => $firstName,
+    "lastName" => $lastName,
+    "email" => $email,
+    "role" => $role
+  ]
 ]);
