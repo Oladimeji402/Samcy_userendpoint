@@ -47,7 +47,7 @@ if (!$user || !password_verify($password, $user['password']) || strtolower($user
 }
 
 // expiry time for JWT
-$expiry = $rememberMe ? (60 * 60 * 24 * 7) : (60 * 60); // 1 hour or 7 days
+$expiry = $rememberMe ? (60 * 60 * 24 * 7) : (60 * 60); //  1 hour or 7 days
 
 $payload = [
     "id" => $user['id'],
@@ -79,16 +79,34 @@ if ($user['first_login']) {
         $mail->isHTML(true);
         $mail->Subject = '✅ First Login Detected';
         $mail->Body = "
-            <html>
-            <body>
-                <p>Hi {$user['firstName']},</p>
-                <p>We've noticed your first login to Samcy. Welcome aboard!</p>
-                <p>If this wasn't you, please reset your password immediately.</p>
-                <p>Time: " . date('Y-m-d H:i:s') . "<br>IP Address: " . $_SERVER['REMOTE_ADDR'] . "</p>
-                <p>Stay safe,<br>Samcy Security Team</p>
-            </body>
-            </html>
-        ";
+<html>
+  <body style='margin:0; padding:0; font-family:Arial, sans-serif; background-color:#121212; color:#ffffff;'>
+    <table width='100%' cellpadding='0' cellspacing='0'>
+      <tr>
+        <td align='center'>
+          <table width='600' cellpadding='30' cellspacing='0' style='background-color:#1e1e1e; border-radius:8px;'>
+            <tr>
+              <td>
+                <h2 style='color:#ff4c4c; margin-bottom: 20px;'>Dear <span style='color:#ffffff;'>Valued User</span>!</h2>
+                <p style='color:#dcdcdc;'>Thank you for logging in to your account at <strong>Samcy</strong> for the first time.</p>
+                <p style='color:#dcdcdc;'>To keep your account secure, we've logged this login event:</p>
+                <p style='margin-top:15px; font-size:15px;'>
+                  <strong>Login Time:</strong> " . date('Y-m-d H:i:s') . "<br>
+                  <strong>IP Address:</strong> " . $_SERVER['REMOTE_ADDR'] . "
+                </p>
+                <p style='color:#999999; margin-top: 20px; font-style: italic;'>If this wasn't you, please change your password immediately.</p>
+                <hr style='border: 0; border-top: 1px solid #333; margin: 30px 0;'>
+                <p style='color:#aaaaaa;'>Thanks,<br><strong>Samcy Security Team</strong></p>
+              </td>
+            </tr>
+          </table>
+          <p style='margin-top:20px; font-size:12px; color:#666;'>Use of our service is subject to our <a href='#' style='color:#4da6ff;'>Terms</a> and <a href='#' style='color:#4da6ff;'>Privacy Policy</a>.</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>";
+
         $mail->AltBody = "Hi {$user['firstName']},\n\nFirst login detected on " . date('Y-m-d H:i:s') . " from IP " . $_SERVER['REMOTE_ADDR'];
 
         $mail->send();

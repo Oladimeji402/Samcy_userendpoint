@@ -131,15 +131,30 @@ try {
     $mail->isHTML(true);
     $mail->Subject = '🎉 Welcome to Samcy!';
     $mail->Body = "
-        <html>
-        <body>
-            <h2>Welcome, {$firstName}!</h2>
-            <p>Thank you for joining <strong>Samcy</strong>. We're thrilled to have you on board.</p>
-            <p>You can now log in and explore your dashboard.</p>
-            <p>Best wishes,<br>The Samcy Team</p>
-        </body>
-        </html>
-    ";
+<html>
+  <body style='margin:0; padding:0; font-family:Arial, sans-serif; background-color:#121212; color:#ffffff;'>
+    <table width='100%' cellpadding='0' cellspacing='0'>
+      <tr>
+        <td align='center'>
+          <table width='600' cellpadding='30' cellspacing='0' style='background-color:#1e1e1e; border-radius:8px;'>
+            <tr>
+              <td>
+                <h2 style='color:#ff4c4c; margin-bottom: 20px;'>🎉 Welcome, {$firstName}!</h2>
+                <p style='color:#dcdcdc;'>Thank you for registering at <strong>Samcy</strong>. We're excited to have you with us.</p>
+                <p style='color:#dcdcdc;'>You can now log in to your dashboard, manage your profile, and explore all features available for your role: <strong style='color:#4da6ff;'>{$role}</strong>.</p>
+                <p style='margin-top: 30px; font-style: italic; color:#999;'>If you have any questions or need help, don’t hesitate to contact our support team.</p>
+                <hr style='border: 0; border-top: 1px solid #333; margin: 30px 0;'>
+                <p style='color:#aaaaaa;'>Best regards,<br><strong>Samcy Support Team</strong></p>
+              </td>
+            </tr>
+          </table>
+          <p style='margin-top:20px; font-size:12px; color:#666;'>By continuing, you agree to our <a href='#' style='color:#4da6ff;'>Terms of Use</a> and <a href='#' style='color:#4da6ff;'>Privacy Policy</a>.</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>";
+
     $mail->AltBody = "Welcome, {$firstName}! Thank you for joining Samcy.";
 
     $mail->send();

@@ -28,3 +28,14 @@ function generateCustomUserId($pdo)
 
     return $prefix . str_pad($num, 3, '0', STR_PAD_LEFT);
 }
+
+function tokenHeader()
+{
+    $headers = getallheaders();
+
+    if (!isset($headers['Authorization']) || !preg_match('/Bearer\\s\\S+/', $headers['Authorization'])) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Authorization token missing or malformed']);
+        exit;
+    }
+}
