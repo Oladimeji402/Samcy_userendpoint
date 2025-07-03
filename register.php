@@ -1,7 +1,14 @@
 <?php
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Credentials: true");
+header("Content-Type: application/json");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+  http_response_code(204);
+  exit;
+}
 
 header("Content-Type: application/json");
 require_once 'config/database.php';
@@ -48,10 +55,7 @@ $gender = sanitize($data['gender']);
 $role = sanitize($data['role']);
 $privacyPolicy = filter_var($data['privacyPolicy'], FILTER_VALIDATE_BOOLEAN);
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-  http_response_code(204);
-  exit;
-}
+
 
 
 if (!isValidEmail($email)) {
