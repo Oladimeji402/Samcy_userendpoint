@@ -5,94 +5,99 @@ require_once 'config/database.php';
 require_once 'includes/functions.php';
 require 'vendor/autoload.php';
 
-use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 $data = json_decode(file_get_contents("php://input"), true);
 $email = sanitize($data['email'] ?? '');
+$ip = $_SERVER['REMOTE_ADDR'];
 
-if (!isValidEmail($email)) {
-  http_response_code(400);
-  echo json_encode(['error' => 'Invalid email address']);
+// === RATE LIMITING: Max 3 requests per email/IP in 15 mins === //
+$stmt = $pdo->prepare("
+  SELECT COUNT(*) 
+  FROM password_reset_requests 
+  WHERE (email = ? OR ip_address = ?) 
+  AND requested_at > NOW() - INTERVAL 15 MINUTE
+");
+$stmt->execute([$email, $ip]);
+$requestCount = $stmt->fetchColumn();
+
+if ($requestCount >= 3) {
+  http_response_code(429);
+  echo json_encode(['error' => 'Too many reset requests. Please wait 15 minutes.']);
   exit;
 }
 
-// Check if user exists
+// Log this request
+$stmt = $pdo->prepare("INSERT INTO password_reset_requests (email, ip_address) VALUES (?, ?)");
+$stmt->execute([$email, $ip]);
+
+// === Proceed to password reset flow === //
+if (!isValidEmail($email)) {
+  http_response_code(400);
+  echo json_encode(['error' => 'Invalid email address.']);
+  exit;
+}
+
+// ✅ NEW: Check if user exists and return specific error if not
 $stmt = $pdo->prepare("SELECT id, firstName FROM users WHERE email = ?");
 $stmt->execute([$email]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user) {
   http_response_code(404);
-  echo json_encode(['error' => 'No user found with this email']);
+  echo json_encode(['error' => 'No account found with this email address.']);
   exit;
 }
 
-// Generate secure token
+// === User exists, continue with reset ===
+$userId = $user['id'];
+$name = $user['firstName'];
+
 $token = bin2hex(random_bytes(32));
-$expires = date('Y-m-d H:i:s', time() + 60 * 5); // 5 minutes
+$tokenHash = hash('sha256', $token);
+$expires = date('Y-m-d H:i:s', time() + 60 * 30); // 30 minutes
 
-// Store token in DB
-$stmt = $pdo->prepare('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?');
-$stmt->execute([$token, $expires, $user['id']]);
+// Remove previous tokens
+$pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$userId]);
 
-// Send email
-$mail = new PHPMailer(true);
-try {
-  $resetLink = $_ENV['RESET_PASSWORD_URL'] . "?token=$token";
+// Save new token
+$stmt = $pdo->prepare("INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)");
+$stmt->execute([$userId, $tokenHash, $expires]);
 
-  $mail->isSMTP();
-  $mail->Host = $_ENV['MAIL_HOST'];
-  $mail->SMTPAuth = true;
-  $mail->Username = $_ENV['MAIL_USER'];
-  $mail->Password = $_ENV['MAIL_PASS'];
-  $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-  $mail->Port = $_ENV['MAIL_PORT'];
+// Prepare and send email
+$resetLink = $_ENV['RESET_PASSWORD_URL'] . "?token=$token";
+$subject = 'Password Reset Request';
 
-  $mail->setFrom($_ENV['MAIL_FROM'], 'Samcy Support');
-  $mail->addReplyTo($_ENV['MAIL_FROM'], 'Samcy Support');
-  $mail->addAddress($email, $user['firstName']);
-
-  $mail->isHTML(true);
-  $mail->Subject = 'Password Reset Request';
-  $mail->Body = "
+$htmlBody = "
 <html>
-  <body style='margin:0; padding:0; font-family:Arial, sans-serif; background-color:#121212; color:#ffffff;'>
-    <table width='100%' cellpadding='0' cellspacing='0'>
-      <tr>
-        <td align='center'>
-          <table width='600' cellpadding='30' cellspacing='0' style='background-color:#1e1e1e; border-radius:8px;'>
-            <tr>
-              <td>
-                <h2 style='color:#ff4c4c;'>Password Reset Request</h2>
-                <p style='color:#dcdcdc;'>Hi {$user['firstName']},</p>
-                <p style='color:#dcdcdc;'>We received a request to reset your password. Click the button below to proceed:</p>
-                <p style='text-align: center; margin: 30px 0;'>
-                  <a href='{$resetLink}' style='padding: 12px 24px; background-color: #4CAF50; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;'>Reset Password</a>
-                </p>
-                <p style='color:#bbbbbb;'>If the button doesn’t work, copy and paste this URL into your browser:</p>
-                <p style='word-break: break-all; color:#4da6ff;'><a href='{$resetLink}' style='color:#4da6ff;'>{$resetLink}</a></p>
-                <p style='color:#999999;'>Note: This link will expire in <strong>5 minutes</strong>.</p>
-                <hr style='border: 0; border-top: 1px solid #333; margin: 30px 0;'>
-                <p style='color:#aaaaaa;'>Regards,<br><strong>Samcy Support Team</strong></p>
-              </td>
-            </tr>
-          </table>
-          <p style='margin-top:20px; font-size:12px; color:#666;'>If you didn’t request this, please ignore this email or contact support.</p>
-        </td>
-      </tr>
-    </table>
+  <body style='font-family: Georgia, serif; background-color: #f8f9fa; color: #212529; margin: 0; padding: 0;'>
+    <div style='max-width: 480px; margin: 40px auto; background: #fff; border: 1px solid #e3e3e3; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); padding: 32px;'>
+      <h2 style='font-family: Georgia, serif; color: #2c3e50; margin-top: 0;'>Password Reset Request</h2>
+      <p style='font-size: 16px;'>Dear $name,</p>
+      <p style='font-size: 15px;'>
+        We received a request to reset your password. Click the button below to set a new password. This link is valid for 30 minutes.
+      </p>
+      <p style='text-align: center; margin: 32px 0;'>
+        <a href='$resetLink' style='display: inline-block; background: #2c3e50; color: #fff; text-decoration: none; font-size: 16px; padding: 12px 28px; border-radius: 4px; border: 1px solid #2c3e50;'>Reset Password</a>
+      </p>
+      <p style='font-size: 14px; color: #555;'>
+        If the button above does not work, copy and paste this link into your browser:<br>
+        <span style='word-break: break-all; color: #2c3e50;'>$resetLink</span>
+      </p>
+      <hr style='border: none; border-top: 1px solid #e3e3e3; margin: 32px 0 16px 0;'>
+      <p style='font-size: 13px; color: #888;'>
+        If you did not request a password reset, please ignore this email.
+      </p>
+    </div>
   </body>
-</html>
-";
+</html>";
 
-  $mail->AltBody = "Hi {$user['firstName']},\n\nYou requested a password reset. Click the link below to reset your password:\n\n{$resetLink}\n\nThis link expires in 5 minutes.\n\nIf you didn't request this, please ignore the email.";
+$altBody = "Dear $name,\n\nWe received a request to reset your password.\nReset your password using this link:\n$resetLink\n\nThis link expires in 30 minutes.\n\nIf you did not request this, please ignore this email.";
 
-
-
-  $mail->send();
-  echo json_encode(['message' => 'Password reset link sent']);
+try {
+  sendMail($email, $name, $subject, $htmlBody, $altBody);
 } catch (Exception $e) {
-  http_response_code(500);
-  echo json_encode(['error' => 'Email could not be sent.', 'details' => $mail->ErrorInfo]);
+  error_log('Password reset email failed for user ID ' . $userId . ' (' . $email . '): ' . $e->getMessage());
 }
+
+echo json_encode(['message' => 'Password reset link sent successfully.']);

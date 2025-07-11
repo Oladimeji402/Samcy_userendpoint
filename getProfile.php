@@ -8,18 +8,16 @@ require 'vendor/autoload.php';
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
-// Get Authorization header
-tokenHeader(); // checks header exists or exits
+
+tokenHeader();
 $authHeader = getallheaders()['Authorization'];
 
-// Extract the token
 $token = str_replace('Bearer ', '', $authHeader);
 
 try {
     $decoded = JWT::decode($token, new Key($_ENV['JWT_SECRET'], 'HS256'));
     $userId = $decoded->id;
 
-    // Fetch full profile
     $stmt = $pdo->prepare("SELECT id, firstName, lastName, email, phone, maritalStatus, dob, state, localGovt, address, nationality, nin, department, gender, role FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);

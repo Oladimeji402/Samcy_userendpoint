@@ -1,9 +1,10 @@
 <?php
-header("Access-Control-Allow-Origin: *");
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+header("Access-Control-Allow-Origin: $origin");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Credentials: true");
-header("Content-Type: application/json");
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   http_response_code(204);
@@ -11,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 header("Content-Type: application/json");
+
 require_once 'config/database.php';
 require_once 'includes/functions.php';
 
@@ -27,7 +29,7 @@ use PHPMailer\PHPMailer\Exception;
 
 
 $data = json_decode(file_get_contents("php://input"), true);
-$requiredFields = ['firstName', 'lastName', 'email', 'phone', 'password', 'confirmPassword', 'maritalStatus', 'dob', 'state', 'localGovt', 'address', 'nationality', 'nin', 'department', 'gender', 'role', 'privacyPolicy'];
+$requiredFields = ['firstName', 'lastName', 'email', 'phone', 'password', 'confirmPassword', 'maritalStatus', 'dob', 'state', 'localGovt', 'address', 'nationality', 'nin', 'department', 'gender', 'privacyPolicy'];
 
 foreach ($requiredFields as $field) {
   if (empty($data[$field])) {
@@ -78,14 +80,7 @@ if ($password !== $confirmPassword) {
 
 $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
 
-// Validate role
-$allowedRoles = ['admin', 'instructor', 'student', 'parent'];
-$role = strtolower(sanitize($data['role']));
-if (!in_array($role, $allowedRoles)) {
-  http_response_code(400);
-  echo json_encode(['error' => 'Invalid role selected']);
-  exit;
-}
+$role = 'student';
 
 
 // Check if user exists
@@ -134,23 +129,10 @@ $stmt = $pdo->prepare("INSERT INTO users (id, firstName, lastName, email, phone,
 $stmt->execute([$userId, $firstName, $lastName, $email, $phone, $hashedPassword, $maritalStatus, $dob, $state, $localGovt, $address, $nationality, $nin, $department, $gender, $role, $privacyPolicy]);
 
 
-$mail = new PHPMailer(true);
-try {
-  $mail->isSMTP();
-  $mail->Host = $_ENV['MAIL_HOST'];
-  $mail->SMTPAuth = true;
-  $mail->Username = $_ENV['MAIL_USER'];
-  $mail->Password = $_ENV['MAIL_PASS'];
-  $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-  $mail->Port = $_ENV['MAIL_PORT'];
 
-  $mail->setFrom($_ENV['MAIL_FROM'], 'Samcy Support');
-  $mail->addAddress($email, $firstName);
-  $mail->addReplyTo($_ENV['MAIL_FROM'], 'Samcy Support');
+$subject = '🎉 Welcome to Samcy!';
 
-  $mail->isHTML(true);
-  $mail->Subject = '🎉 Welcome to Samcy!';
-  $mail->Body = "
+$htmlBody = "
 <html>
   <body style='margin:0; padding:0; font-family:Arial, sans-serif; background-color:#121212; color:#ffffff;'>
     <table width='100%' cellpadding='0' cellspacing='0'>
@@ -175,13 +157,11 @@ try {
   </body>
 </html>";
 
-  $mail->AltBody = "Welcome, {$firstName}! Thank you for joining Samcy.";
+$altBody = "Welcome, {$firstName}! Thank you for joining Samcy.";
 
-  $mail->send();
-} catch (Exception $e) {
-  // Don’t block the registration process if email fails
-  error_log("Failed to send welcome email to $email: " . $mail->ErrorInfo);
-}
+sendMail($email, $firstName, $subject, $htmlBody, $altBody);
+
+
 
 // JWT generation
 $payload = [
